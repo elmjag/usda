@@ -1,12 +1,15 @@
 digit = { ASCII_DIGIT }
-dot = { "."}
+dot = { "." }
 space = { " " | "\t" }
 double_quote = { "\"" }
 crlf = { NEWLINE }
 
 //
-// character
+// characters
 //
+
+ascii_start = { ASCII_ALPHA | "_" }
+ascii_continue  = { ASCII_ALPHANUMERIC | "_" }
 
 utf8_character =
 {
@@ -70,6 +73,7 @@ string = { double_quote_string }
 base_identifier = { ( XID_START | "_" ) ~ XID_CONTINUE* }
 cxx_namespaced_identifier = { base_identifier ~ ( "::" ~ base_identifier )* }
 identifier = { cxx_namespaced_identifier }
+namespaced_name = { base_identifier ~ ( ":" ~ base_identifier)* }
 
 //
 // assignment
@@ -78,15 +82,133 @@ identifier = { cxx_namespaced_identifier }
 assignment = { ( space )* ~ "=" ~ ( space )* }
 
 //
-// metadata
+// list
 //
 
 atomic_value = { number  | identifier | string }
-typed_value = { atomic_value }
-metadata_value = { "None" | typed_value }
+list_item = { atomic_value | list_value | tuple_value }
+
+// List<ListItem>
+list_list_item =
+{
+  list_item ~
+  ( inline_padding* ~ "," ~ multiline_padding* ~ list_item )* ~
+  inline_padding* ~ ( "," ~ multiline_padding* )?
+}
+
+//
+// array
+//
+
+array_type = { "[" ~ inline_padding* ~ "]" }
+
+//
+// tuple
+//
+
+tuple_item = { atomic_value | tuple_value }
+
+// List<TupleItem>
+list_tuple_item = {
+  tuple_item ~ ( inline_padding* ~ "," ~ multiline_padding* ~ tuple_item)* ~
+  inline_padding* ~ ( "," ~ multiline_padding* )?
+}
+
+tuple_value = { "(" ~ multiline_padding* ~ list_tuple_item ~ multiline_padding* ~ ")" }
+
+//
+// dictionary
+//
+
+dictionary_key = { string | base_identifier }
+dictionary_type = { identifier }
+
+// Sequence<DictionaryValueItem>
+sequence_dictionary_value_item = {
+  dictionary_value_item ~
+  ( singleline_padding* ~ statement_separator ~ multiline_padding* ~ dictionary_value_item )* ~
+  singleline_padding* ~ ( statement_separator ~ multiline_padding* )?
+}
+
+dictionary_value = {
+  "{" ~ multiline_padding* ~ ( sequence_dictionary_value_item ~ multiline_padding* )? ~ "}"
+}
+
+dictionary_value_item = {
+  "dictionary" ~ inline_padding+ ~ dictionary_key ~ assignment ~ dictionary_value |
+  dictionary_type ~ inline_padding+ ~ dictionary_key ~ assignment ~ typed_value
+}
+
+
+//
+// metadata
+//
+
+typed_value = { atomic_value | array_type | list_value }
+metadata_value = { "None" | dictionary_value | typed_value }
 key_value_metadata = { identifier ~ assignment ~ metadata_value }
 doc_metadata = { "doc" ~ assignment ~ string }
 shared_metadata = { string | key_value_metadata | doc_metadata }
+list_op = { "delete" | "append" | "prepend" }
+list_op_value = { "None" | list_value }
+list_value = { "[" ~ multiline_padding* ~ list_list_item ~ multiline_padding* ~ "]" }
+list_op_metadata = { list_op ~ inline_padding+ ~ identifier ~ assignment ~ list_op_value }
+
+//
+// prim attributes
+//
+
+attribute_variability = { "uniform" }
+attribute_assignment = { assignment ~ "None" | assignment ~ typed_value }
+
+attribute_type = {
+  ( attribute_variability ~ inline_padding+ )? ~ identifier ~ ( inline_padding* ~ array_type )?
+}
+
+attribute_declaration = {
+  ( "custom" ~ inline_padding+ )? ~ attribute_type ~ inline_padding+ ~ namespaced_name
+}
+
+attribute_spec = {
+  attribute_declaration ~ attribute_assignment? /* ~ inline_padding* ~ ( attribute_metadata ~ inline_padding* )? */
+}
+
+//
+// prim spec
+//
+
+prim_specifier = { "def" | "over" | "class" }
+prim_type_name = { ascii_start ~ ascii_continue* }
+prim_metadata_item = { shared_metadata | list_op_metadata }
+
+// Sequence<PrimMetadataItem>
+sequence_prim_metadata_item = {
+  prim_metadata_item ~
+  ( ( singleline_padding )* ~ statement_separator ~ ( multiline_padding )* ~ prim_metadata_item )* ~
+  singleline_padding* ~
+  ( statement_separator ~ multiline_padding* )?
+}
+
+// MetadataBlock<PrimMetadataItem>
+metadata_block_prim_metadata_item = {
+  "(" ~ multiline_padding* ~ ( sequence_prim_metadata_item ~ multiline_padding* )? ~ ")"
+}
+
+prim_metadata = { metadata_block_prim_metadata_item }
+property_spec = { attribute_spec }
+
+prim_item = {
+  property_spec ~ singleline_padding* ~ statement_separator |
+  prim_spec ~ singleline_padding* ~ crlf
+}
+
+prim_contents = { multiline_padding* ~ ( prim_item ~ multiline_padding* )* }
+
+prim_spec = {
+  prim_specifier ~ inline_padding* ~ ( prim_type_name ~ inline_padding+ )? ~
+  string ~ multiline_padding* ~ ( prim_metadata ~ multiline_padding* )? ~
+  "{" ~ prim_contents  ~ "}"
+}
 
 //
 // header
@@ -94,25 +216,41 @@ shared_metadata = { string | key_value_metadata | doc_metadata }
 
 statement_separator = { crlf | ";" }
 layer_metadata_item = { shared_metadata }
-layer_metadata_item_sequence = {
+
+// Sequence<LayerMetadataItem>
+sequence_layer_metadata_item = {
   layer_metadata_item ~
   ( ( singleline_padding )* ~ statement_separator ~ ( multiline_padding )* ~ layer_metadata_item )* ~
   singleline_padding* ~
   ( statement_separator ~ multiline_padding* )?
+}
 
+// MetadataBlock<LayerMetadataItem>
+metadata_block_layer_metadata_item = {
+  "(" ~ multiline_padding* ~ ( sequence_layer_metadata_item ~ multiline_padding* )? ~ ")"
 }
-layer_metadata = {
-  "(" ~ multiline_padding* ~ ( layer_metadata_item_sequence ~ multiline_padding* )? ~ ")"
-}
+
+layer_metadata = { metadata_block_layer_metadata_item }
+
 layer_header =
 {
   "#usda" ~ ( inline_padding )* ~ ( digit )+ ~ dot ~ ( digit )+ ~ ( dot ~ ( digit )+ )?
 }
 
 //
+// body
+//
+
+layer_item = { prim_spec }
+
+//
 // root
 //
 
 layer_spec = {
-  layer_header ~ multiline_padding* ~ ( layer_metadata ~ multiline_padding* )?
+  layer_header ~ multiline_padding* ~
+  ( layer_metadata ~ multiline_padding* )? ~
+  ( layer_item ~ multiline_padding* )*
 }
+
+root = { SOI ~ layer_spec ~ EOI }

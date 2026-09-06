@@ -7,7 +7,7 @@ use pest_derive::Parser;
 struct UsdaParser;
 
 pub fn parse(input: &str) -> Pairs<'_, Rule> {
-    UsdaParser::parse(Rule::layer_spec, input).unwrap()
+    UsdaParser::parse(Rule::root, input).unwrap()
 }
 
 pub fn dbg_parse(input: &str, rule: Rule) -> Pairs<'_, Rule> {
