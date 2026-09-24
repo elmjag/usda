@@ -1,8 +1,8 @@
 digit = { ASCII_DIGIT }
 dot = { "." }
-space = { " " | "\t" }
+space = _{ " " | "\t" }
 double_quote = { "\"" }
-crlf = { NEWLINE }
+crlf = _{ NEWLINE }
 
 //
 // characters
@@ -40,9 +40,9 @@ non_crlf_utf8_character = {
 // padding
 //
 
-inline_padding = { space }
+inline_padding = _{ space }
 singleline_padding = { space }
-multiline_padding = { space | crlf  }
+multiline_padding = _{ space | crlf  }
 
 //
 // number
@@ -79,7 +79,7 @@ namespaced_name = { base_identifier ~ ( ":" ~ base_identifier)* }
 // assignment
 //
 
-assignment = { ( space )* ~ "=" ~ ( space )* }
+assignment = _{ ( space )* ~ "=" ~ ( space )* }
 
 //
 // list
@@ -214,7 +214,7 @@ prim_spec = {
 // header
 //
 
-statement_separator = { crlf | ";" }
+statement_separator = _{ crlf | ";" }
 layer_metadata_item = { shared_metadata }
 
 // Sequence<LayerMetadataItem>
