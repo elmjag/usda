@@ -1,8 +1,8 @@
-use crate::{
-    layer::{Attribute, AttributeType, AttributeValue, Prim},
+use super::{
     parser::Rule,
     utils::{consume_one, consume_two, num_parse, unpack_one},
 };
+use crate::layer::{Attribute, AttributeType, AttributeValue, Prim};
 use pest::iterators::{Pair, Pairs};
 
 // // for debugging

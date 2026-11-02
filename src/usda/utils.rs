@@ -1,4 +1,4 @@
-use crate::parser::Rule;
+use super::parser::Rule;
 use pest::iterators::{Pair, Pairs};
 use std::{fmt::Debug, str::FromStr};
 

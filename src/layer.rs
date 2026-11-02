@@ -95,4 +95,8 @@ impl Prim {
             children,
         }
     }
+
+    pub fn name(&self) -> &String {
+        &self.name
+    }
 }
